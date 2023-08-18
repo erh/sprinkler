@@ -24,7 +24,6 @@ type ZoneConfig struct {
 type sprinklerConfig struct {
 	Board string
 	StartHour int `json:"start_hour"`
-	MaxTimeSliceMinutes int `json:"max_time_slice_minutes"`
 	Zones map[string]ZoneConfig
 }
 
@@ -61,10 +60,10 @@ func newSprinkler(ctx context.Context, deps resource.Dependencies, config resour
 		return nil, err
 	}
 
-	s := &sprinkler{config: newConf, name: config.ResourceName()}
+	s := &sprinkler{config: newConf, name: config.ResourceName(), logger: logger}
 
 	s.pins = map[string]board.GPIOPin{}
-	s.stats = map[string]float64{}
+	s.stats = map[string]time.Duration{}
 
 	r, err := deps.Lookup(board.Named(s.config.Board))
 	if err != nil {
@@ -82,6 +81,8 @@ func newSprinkler(ctx context.Context, deps resource.Dependencies, config resour
 	}
 
 	logger.Infof("hi %v", s)
+
+	go s.run()
 	
 	return s, nil
 }
@@ -91,14 +92,18 @@ type sprinkler struct {
 	
 	config *sprinklerConfig
 	name resource.Name
+	logger golog.Logger
+
+	backgroundContext context.Context
+	backgroundCancel context.CancelFunc
 	
 	theBoard board.Board
 	pins map[string]board.GPIOPin
 
 	statsLock sync.Mutex
-	stats map[string]float64 // how many minutes each zone has been running
+	stats map[string]time.Duration // how many minutes each zone has been running
 	running string // what sprinker is running now
-	
+	lastLoop time.Time
 }
 
 func (s *sprinkler) Name() resource.Name {
@@ -106,25 +111,96 @@ func (s *sprinkler) Name() resource.Name {
 }
 
 func (s *sprinkler) Close(ctx context.Context) error {
-	// TODO shut down thread
+	s.backgroundCancel()
 	return nil
+}
+
+func (s *sprinkler) run() {
+	s.backgroundContext, s.backgroundCancel = context.WithCancel(context.Background())
+
+	for {
+		err := s.doLoop(s.backgroundContext, time.Now())
+		if err != nil {
+			s.logger.Errorf("error doing sprinkler loop: %v", err)
+		}
+		
+		if !utils.SelectContextOrWait(s.backgroundContext, 10 * time.Second) {
+			s.logger.Errorf("stopping sprinkler")
+			return
+		}
+		
+	}
 }
 
 func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
+	s.logger.Infof("doLoop now: %v", now)
 	if now.Hour() < 1 || now.Hour() < s.config.StartHour {
-		s.stats = map[string]float64{}
+		s.statsLock.Lock()
+		for n, _ := range s.stats {
+			s.stats[n] = 0
+		}
 		s.running = ""
+		s.lastLoop = now
+		s.statsLock.Unlock()
 		return s.stopAll(ctx)
 	}
 
-	panic(1)
+	s.statsLock.Lock()
+
+	if s.running != "" {
+
+		d := s.stats[s.running]
+		d += now.Sub(s.lastLoop)
+		s.stats[s.running] = d
+		s.lastLoop = now
+
+		s.statsLock.Unlock()
+		
+		if int(d.Minutes()) < s.config.Zones[s.running].Minutes {
+			// keep going
+			return nil
+		}
+		
+		return s.stopAll(ctx)
+	}
+
+	s.running = s.pickNext_inlock()
+	s.lastLoop = now
+	s.statsLock.Unlock()
+
+	err := s.stopAll(ctx)
+	if err != nil {
+		return err
+	}
+	if s.running == "" {
+		return nil
+	}
 	
-	return nil
+	return s.zoneOn(ctx, s.running)
+}
+
+func (s *sprinkler) pickNext_inlock() string {
+	name := ""
+	priority := 0
+	
+	for n, z := range s.config.Zones {
+		if z.Minutes < int(s.stats[n].Minutes()) {
+			continue
+		}
+
+		mypriority := z.Minutes
+		if mypriority > priority {
+			name = n
+			priority = mypriority
+		}
+	}
+	return name
 }
 
 func (s *sprinkler) stopAll(ctx context.Context) error {
-	for name, p := range s.pins {
-		err := p.Set(ctx, false, nil)
+	s.logger.Infof("stopAll")
+	for name, _ := range s.pins {
+		err := s.zoneOff(ctx, name)
 		if err != nil {
 			return fmt.Errorf("cannot turn off pin (%s) for zone (%s)", s.config.Zones[name].Pin, name)
 		}
@@ -143,9 +219,22 @@ func (s *sprinkler) Readings(ctx context.Context, extra map[string]interface{}) 
 	defer s.statsLock.Unlock()
 
 	for n, v := range s.stats {
-		m[n] = v
+		m[n] = v.Minutes()
 	}
 	m["running"] = s.running
 
 	return m, nil
+}
+
+func (s *sprinkler) zoneOn(ctx context.Context, zone string) error {
+	s.logger.Infof("zoneOn %s", zone)
+	p, ok := s.pins[zone]
+	if !ok {
+		return fmt.Errorf("who no pin for zone: %s", zone)
+	}
+	return p.Set(ctx, true, nil)
+}
+
+func (s *sprinkler) zoneOff(ctx context.Context, zone string) error {
+	return s.pins[zone].Set(ctx, true, nil)
 }
