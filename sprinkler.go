@@ -61,9 +61,7 @@ func newSprinkler(ctx context.Context, deps resource.Dependencies, config resour
 	}
 
 	s := &sprinkler{config: newConf, name: config.ResourceName(), logger: logger}
-
-	s.pins = map[string]board.GPIOPin{}
-	s.stats = map[string]time.Duration{}
+	s.init()
 
 	r, err := deps.Lookup(board.Named(s.config.Board))
 	if err != nil {
@@ -102,8 +100,13 @@ type sprinkler struct {
 
 	statsLock sync.Mutex
 	stats     map[string]time.Duration // how many minutes each zone has been running
-	running   string                   // what sprinker is running now
+	running   string                   // what sprinkler is running now
 	lastLoop  time.Time
+}
+
+func (s *sprinkler) init() {
+	s.pins = map[string]board.GPIOPin{}
+	s.stats = map[string]time.Duration{}
 }
 
 func (s *sprinkler) Name() resource.Name {
@@ -148,24 +151,13 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 	s.statsLock.Lock()
 
 	if s.running != "" {
-
 		d := s.stats[s.running]
 		d += now.Sub(s.lastLoop)
 		s.stats[s.running] = d
-		s.lastLoop = now
-
-		s.statsLock.Unlock()
-
-		if int(d.Minutes()) < s.config.Zones[s.running].Minutes {
-			// keep going
-			return nil
-		}
-
-		return s.stopAll(ctx)
 	}
+	s.lastLoop = now
 
 	s.running = s.pickNext_inlock()
-	s.lastLoop = now
 	s.statsLock.Unlock()
 
 	err := s.stopAll(ctx)
@@ -184,7 +176,7 @@ func (s *sprinkler) pickNext_inlock() string {
 	priority := 0
 
 	for n, z := range s.config.Zones {
-		if z.Minutes < int(s.stats[n].Minutes()) {
+		if float64(z.Minutes) < s.stats[n].Minutes() {
 			continue
 		}
 
@@ -230,7 +222,7 @@ func (s *sprinkler) zoneOn(ctx context.Context, zone string) error {
 	s.logger.Infof("zoneOn %s", zone)
 	p, ok := s.pins[zone]
 	if !ok {
-		return fmt.Errorf("who no pin for zone: %s", zone)
+		return fmt.Errorf("why no pin for zone: %s", zone)
 	}
 	return p.Set(ctx, true, nil)
 }
