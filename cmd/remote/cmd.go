@@ -28,7 +28,7 @@ func realMain() error {
 	if err != nil {
 		return err
 	}
-	
+
 	conf.Network.BindAddress = "0.0.0.0:8081"
 	if err := conf.Network.Validate(""); err != nil {
 		return err
@@ -38,6 +38,6 @@ func realMain() error {
 	if err != nil {
 		return err
 	}
-	
+
 	return web.RunWebWithConfig(ctx, myRobot, conf, logger)
 }

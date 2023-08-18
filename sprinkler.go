@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	
+
 	"github.com/edaniels/golog"
 
 	"go.viam.com/rdk/components/board"
@@ -17,19 +17,19 @@ import (
 var SprinklerModel = resource.DefaultModelFamily.WithModel("sprinkler")
 
 type ZoneConfig struct {
-	Pin string
+	Pin     string
 	Minutes int
 }
 
 type sprinklerConfig struct {
-	Board string
+	Board     string
 	StartHour int `json:"start_hour"`
-	Zones map[string]ZoneConfig
+	Zones     map[string]ZoneConfig
 }
 
 func (cfg sprinklerConfig) Validate(path string) ([]string, error) {
 	deps := []string{cfg.Board}
-	
+
 	if cfg.Board == "" {
 		return nil, utils.NewConfigValidationFieldRequiredError(path, "board")
 	}
@@ -69,9 +69,9 @@ func newSprinkler(ctx context.Context, deps resource.Dependencies, config resour
 	if err != nil {
 		return nil, err
 	}
-	
+
 	s.theBoard = r.(board.Board)
-	
+
 	for name, z := range newConf.Zones {
 		p, err := s.theBoard.GPIOPinByName(z.Pin)
 		if err != nil {
@@ -83,27 +83,27 @@ func newSprinkler(ctx context.Context, deps resource.Dependencies, config resour
 	logger.Infof("hi %v", s)
 
 	go s.run()
-	
+
 	return s, nil
 }
 
 type sprinkler struct {
 	resource.AlwaysRebuild
-	
+
 	config *sprinklerConfig
-	name resource.Name
+	name   resource.Name
 	logger golog.Logger
 
 	backgroundContext context.Context
-	backgroundCancel context.CancelFunc
-	
+	backgroundCancel  context.CancelFunc
+
 	theBoard board.Board
-	pins map[string]board.GPIOPin
+	pins     map[string]board.GPIOPin
 
 	statsLock sync.Mutex
-	stats map[string]time.Duration // how many minutes each zone has been running
-	running string // what sprinker is running now
-	lastLoop time.Time
+	stats     map[string]time.Duration // how many minutes each zone has been running
+	running   string                   // what sprinker is running now
+	lastLoop  time.Time
 }
 
 func (s *sprinkler) Name() resource.Name {
@@ -123,12 +123,12 @@ func (s *sprinkler) run() {
 		if err != nil {
 			s.logger.Errorf("error doing sprinkler loop: %v", err)
 		}
-		
-		if !utils.SelectContextOrWait(s.backgroundContext, 10 * time.Second) {
+
+		if !utils.SelectContextOrWait(s.backgroundContext, 10*time.Second) {
 			s.logger.Errorf("stopping sprinkler")
 			return
 		}
-		
+
 	}
 }
 
@@ -136,7 +136,7 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 	s.logger.Infof("doLoop now: %v", now)
 	if now.Hour() < 1 || now.Hour() < s.config.StartHour {
 		s.statsLock.Lock()
-		for n, _ := range s.stats {
+		for n := range s.stats {
 			s.stats[n] = 0
 		}
 		s.running = ""
@@ -155,12 +155,12 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 		s.lastLoop = now
 
 		s.statsLock.Unlock()
-		
+
 		if int(d.Minutes()) < s.config.Zones[s.running].Minutes {
 			// keep going
 			return nil
 		}
-		
+
 		return s.stopAll(ctx)
 	}
 
@@ -175,14 +175,14 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 	if s.running == "" {
 		return nil
 	}
-	
+
 	return s.zoneOn(ctx, s.running)
 }
 
 func (s *sprinkler) pickNext_inlock() string {
 	name := ""
 	priority := 0
-	
+
 	for n, z := range s.config.Zones {
 		if z.Minutes < int(s.stats[n].Minutes()) {
 			continue
@@ -199,7 +199,7 @@ func (s *sprinkler) pickNext_inlock() string {
 
 func (s *sprinkler) stopAll(ctx context.Context) error {
 	s.logger.Infof("stopAll")
-	for name, _ := range s.pins {
+	for name := range s.pins {
 		err := s.zoneOff(ctx, name)
 		if err != nil {
 			return fmt.Errorf("cannot turn off pin (%s) for zone (%s)", s.config.Zones[name].Pin, name)
