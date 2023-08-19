@@ -126,10 +126,11 @@ type sprinkler struct {
 	theBoard board.Board
 	pins     map[string]board.GPIOPin
 
-	statsLock sync.Mutex
-	stats     map[string]time.Duration // how many minutes each zone has been running
-	running   string                   // what sprinkler is running now
-	lastLoop  time.Time
+	statsLock     sync.Mutex
+	stats         map[string]time.Duration // how many minutes each zone has been running
+	running       string                   // what sprinkler is running now
+	lastLoop      time.Time
+	pauseTillTime time.Time
 }
 
 func (s *sprinkler) init() {
@@ -165,18 +166,23 @@ func (s *sprinkler) run() {
 
 func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 
+	s.statsLock.Lock()
+
+	if now.Before(s.pauseTillTime) {
+		s.statsLock.Unlock()
+		s.logger.Infof("paused till %v", s.pauseTillTime)
+		return s.stopAllExcept(ctx, "")
+	}
+
 	if now.Hour() < 1 || now.Hour() < s.config.StartHour {
-		s.statsLock.Lock()
 		for n := range s.stats {
 			s.stats[n] = 0
 		}
 		s.running = ""
 		s.lastLoop = now
 		s.statsLock.Unlock()
-		return s.stopAll(ctx)
+		return s.stopAllExcept(ctx, "")
 	}
-
-	s.statsLock.Lock()
 
 	if s.running != "" {
 		d := s.stats[s.running]
@@ -193,15 +199,7 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 		return nil
 	}
 
-	err := s.stopAll(ctx)
-	if err != nil {
-		return err
-	}
-	if s.running == "" {
-		return nil
-	}
-
-	return s.zoneOn(ctx, s.running)
+	return s.stopAllExcept(ctx, s.running)
 }
 
 func (s *sprinkler) pickNext_inlock() string {
@@ -217,21 +215,22 @@ func (s *sprinkler) pickNext_inlock() string {
 	return ""
 }
 
-func (s *sprinkler) stopAll(ctx context.Context) error {
-	s.logger.Infof("stopAll")
-	for name := range s.pins {
-		err := s.zoneOff(ctx, name)
-		if err != nil {
-			return fmt.Errorf("cannot turn off pin (%s) for zone (%s)", s.config.Zones[name].Pin, name)
-		}
-	}
-	return nil
-}
-
 func (s *sprinkler) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
 	cmdName := cmd["cmd"]
 	if cmdName == "order" {
 		return map[string]interface{}{"order": s.config.zoneOrder()}, nil
+	}
+
+	if cmdName == "pause" {
+		min, ok := cmd["minutes"].(float64)
+		if !ok {
+			return nil, fmt.Errorf("pause command requires a 'minutes' param that is an float64, got [%v] an %T", cmd["minutes"], cmd["minutes"])
+		}
+		t := time.Now().Add(time.Duration(float64(time.Minute) * min))
+		s.statsLock.Lock()
+		s.pauseTillTime = t
+		s.statsLock.Unlock()
+		return map[string]interface{}{"till": t}, nil
 	}
 
 	return nil, fmt.Errorf("sprinkler do command doesn't understand cmd [%s]", cmdName)
@@ -250,15 +249,51 @@ func (s *sprinkler) Readings(ctx context.Context, extra map[string]interface{}) 
 	return m, nil
 }
 
+func (s *sprinkler) stopAllExcept(ctx context.Context, torun string) error {
+	for name := range s.pins {
+		if name == torun {
+			err := s.zoneOn(ctx, name)
+			if err != nil {
+				return fmt.Errorf("cannot turn on pin (%s) for zone (%s)", s.config.Zones[name].Pin, name)
+			}
+		} else {
+			err := s.zoneOff(ctx, name)
+			if err != nil {
+				return fmt.Errorf("cannot turn off pin (%s) for zone (%s)", s.config.Zones[name].Pin, name)
+			}
+		}
+	}
+	return nil
+}
+
 func (s *sprinkler) zoneOn(ctx context.Context, zone string) error {
-	s.logger.Infof("zoneOn %s", zone)
 	p, ok := s.pins[zone]
 	if !ok {
 		return fmt.Errorf("why no pin for zone: %s", zone)
 	}
+	v, err := p.Get(ctx, nil)
+	if err != nil {
+		return err
+	}
+	if v == true {
+		return nil
+	}
+	s.logger.Infof("turning zone on %s", zone)
 	return p.Set(ctx, true, nil)
 }
 
 func (s *sprinkler) zoneOff(ctx context.Context, zone string) error {
-	return s.pins[zone].Set(ctx, true, nil)
+	p, ok := s.pins[zone]
+	if !ok {
+		return fmt.Errorf("why no pin for zone: %s", zone)
+	}
+	v, err := p.Get(ctx, nil)
+	if err != nil {
+		return err
+	}
+	if v == false {
+		return nil
+	}
+	s.logger.Infof("turning zone off %s", zone)
+	return p.Set(ctx, false, nil)
 }
