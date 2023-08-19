@@ -108,8 +108,6 @@ func newSprinkler(ctx context.Context, deps resource.Dependencies, config resour
 		s.pins[name] = p
 	}
 
-	logger.Infof("hi %v", s)
-
 	go s.run()
 
 	return s, nil
@@ -166,7 +164,7 @@ func (s *sprinkler) run() {
 }
 
 func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
-	s.logger.Infof("doLoop now: %v", now)
+
 	if now.Hour() < 1 || now.Hour() < s.config.StartHour {
 		s.statsLock.Lock()
 		for n := range s.stats {
@@ -187,8 +185,13 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 	}
 	s.lastLoop = now
 
+	prev := s.running
 	s.running = s.pickNext_inlock()
 	s.statsLock.Unlock()
+
+	if prev == s.running {
+		return nil
+	}
 
 	err := s.stopAll(ctx)
 	if err != nil {
@@ -202,25 +205,16 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 }
 
 func (s *sprinkler) pickNext_inlock() string {
-	name := ""
-	priority := 0
-
 	names := s.config.zoneOrder()
 
 	for _, n := range names {
 		z := s.config.Zones[n]
-
-		if float64(z.Minutes) < s.stats[n].Minutes() {
-			continue
-		}
-
-		mypriority := z.Minutes
-		if mypriority > priority {
-			name = n
-			priority = mypriority
+		if float64(z.Minutes) >= s.stats[n].Minutes() {
+			return n
 		}
 	}
-	return name
+
+	return ""
 }
 
 func (s *sprinkler) stopAll(ctx context.Context) error {
