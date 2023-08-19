@@ -50,5 +50,5 @@ func realMain() error {
 		return err
 	}
 
-	return sprinkler.RunServer(ctx, logger, ":8888", mySprinkler)
+	return sprinkler.RunServer(ctx, logger, ":8899", mySprinkler)
 }

@@ -1,5 +1,53 @@
 <html>
+  <head>
+    <script>
+     function runZone(zone, minutes) {
+       window.location.href = "/?run=" + zone + "&min=" + minutes;
+     }
+
+     function pause(minutes) {
+       window.location.href = "/?pause=" + minutes;
+     }
+
+    </script>
+    <meta http-equiv="refresh" content="10; url=/" />
+    
+  </head>
   <body>
-    hi
+
+    <h2>{{.Message}}</h2>
+    
+    <h3>Running Now: {{.Running}}</h3>
+    <h3>Paused Till: {{.PauseTill}}</h3>
+
+    <div>
+      <button onclick="pause(5)">Pause 5 minutes</button>
+    </div>
+
+    <div>
+      <button onclick="pause(30)">Pause 30 minutes</button>
+    </div>
+
+    <div>
+      <button onclick="pause(60*4)">Pause 4 hours</button>
+    </div>
+
+    <table border="1">
+      <tr>
+        <th>Zone</th>
+        <th>Minutes watered today</th>
+        <th>Actions</th>
+      </tr>
+      {{ range .Zones}}
+      <tr>
+        <th>{{.Name}}</th>
+        <td>{{printf "%.2f" .MinutesSoFar}}</td>
+        <td>
+          <button onclick="runZone('{{.Name}}', 1)">Run 1 Minute</button>
+          <button onclick="runZone('{{.Name}}', 10)">Run 10 Minutes</button>
+        </td>
+      </tr>
+      {{ end }}
+    </table>
   </body>
 </html>

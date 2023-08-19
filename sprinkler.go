@@ -109,7 +109,7 @@ func newSprinkler(ctx context.Context, deps resource.Dependencies, config resour
 	}
 
 	go s.run()
-	go RunServer(ctx, logger, ":8888", s)
+	go RunServer(ctx, logger, ":9999", s)
 
 	return s, nil
 }
@@ -132,6 +132,8 @@ type sprinkler struct {
 	running       string                   // what sprinkler is running now
 	lastLoop      time.Time
 	pauseTillTime time.Time
+	forceZone     string
+	forceTill     time.Time
 }
 
 func (s *sprinkler) init() {
@@ -157,7 +159,7 @@ func (s *sprinkler) run() {
 			s.logger.Errorf("error doing sprinkler loop: %v", err)
 		}
 
-		if !utils.SelectContextOrWait(s.backgroundContext, 10*time.Second) {
+		if !utils.SelectContextOrWait(s.backgroundContext, 1*time.Second) {
 			s.logger.Errorf("stopping sprinkler")
 			return
 		}
@@ -169,7 +171,24 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 
 	s.statsLock.Lock()
 
+	if s.running != "" { // note: this has to be first
+		d := s.stats[s.running]
+		d += now.Sub(s.lastLoop)
+		s.stats[s.running] = d
+	}
+	s.lastLoop = now
+
+	if now.Before(s.forceTill) && s.forceZone != "" {
+		z := s.forceZone
+		s.running = s.forceZone
+		s.statsLock.Unlock()
+
+		s.logger.Infof("forcing zone %s till %v", z, s.forceTill)
+		return s.stopAllExcept(ctx, z)
+	}
+
 	if now.Before(s.pauseTillTime) {
+		s.running = ""
 		s.statsLock.Unlock()
 		s.logger.Infof("paused till %v", s.pauseTillTime)
 		return s.stopAllExcept(ctx, "")
@@ -184,13 +203,6 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 		s.statsLock.Unlock()
 		return s.stopAllExcept(ctx, "")
 	}
-
-	if s.running != "" {
-		d := s.stats[s.running]
-		d += now.Sub(s.lastLoop)
-		s.stats[s.running] = d
-	}
-	s.lastLoop = now
 
 	prev := s.running
 	s.running = s.pickNext_inlock()
@@ -234,6 +246,25 @@ func (s *sprinkler) DoCommand(ctx context.Context, cmd map[string]interface{}) (
 		return map[string]interface{}{"till": t}, nil
 	}
 
+	if cmdName == "run" {
+		min, ok := cmd["minutes"].(float64)
+		if !ok {
+			return nil, fmt.Errorf("pause command requires a 'minutes' param that is an float64, got [%v] an %T", cmd["minutes"], cmd["minutes"])
+		}
+		t := time.Now().Add(time.Duration(float64(time.Minute) * min))
+		z, ok := cmd["zone"].(string)
+		if !ok {
+			return nil, fmt.Errorf("zone isn't a string")
+		}
+
+		s.statsLock.Lock()
+		s.forceZone = z
+		s.forceTill = t
+		s.statsLock.Unlock()
+
+		return map[string]interface{}{"till": t}, nil
+	}
+
 	return nil, fmt.Errorf("sprinkler do command doesn't understand cmd [%s]", cmdName)
 }
 
@@ -247,6 +278,16 @@ func (s *sprinkler) Readings(ctx context.Context, extra map[string]interface{}) 
 		m[n] = v.Minutes()
 	}
 	m["running"] = s.running
+
+	if time.Now().Before(s.pauseTillTime) {
+		m["pause_till"] = s.pauseTillTime.Format(time.UnixDate)
+	} else {
+		m["pause_till"] = ""
+	}
+
+	m["force_zone"] = s.forceZone
+	m["force_till"] = s.forceTill.Format(time.UnixDate)
+
 	return m, nil
 }
 
