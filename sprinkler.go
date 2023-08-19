@@ -109,6 +109,7 @@ func newSprinkler(ctx context.Context, deps resource.Dependencies, config resour
 	}
 
 	go s.run()
+	go RunServer(ctx, logger, ":8888", s)
 
 	return s, nil
 }
