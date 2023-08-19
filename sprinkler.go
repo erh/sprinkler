@@ -229,7 +229,12 @@ func (s *sprinkler) stopAll(ctx context.Context) error {
 }
 
 func (s *sprinkler) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
-	return nil, fmt.Errorf("not implemented")
+	cmdName := cmd["cmd"]
+	if cmdName == "order" {
+		return map[string]interface{}{"order": s.config.zoneOrder()}, nil
+	}
+
+	return nil, fmt.Errorf("sprinkler do command doesn't understand cmd [%s]", cmdName)
 }
 
 func (s *sprinkler) Readings(ctx context.Context, extra map[string]interface{}) (map[string]interface{}, error) {
@@ -242,7 +247,6 @@ func (s *sprinkler) Readings(ctx context.Context, extra map[string]interface{}) 
 		m[n] = v.Minutes()
 	}
 	m["running"] = s.running
-
 	return m, nil
 }
 
