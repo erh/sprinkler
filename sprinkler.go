@@ -3,6 +3,8 @@ package sprinkler
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,8 +19,9 @@ import (
 var SprinklerModel = resource.DefaultModelFamily.WithModel("sprinkler")
 
 type ZoneConfig struct {
-	Pin     string
-	Minutes int
+	Pin      string
+	Minutes  int
+	Priority int
 }
 
 type sprinklerConfig struct {
@@ -43,6 +46,33 @@ func (cfg sprinklerConfig) totalMinutes() int {
 		total += z.Minutes
 	}
 	return total
+}
+
+func (cfg sprinklerConfig) zoneOrder() []string {
+	all := []string{}
+	for n := range cfg.Zones {
+		all = append(all, n)
+	}
+
+	sort.Slice(all, func(i, j int) bool {
+		ii := all[i]
+		jj := all[j]
+
+		iii := cfg.Zones[ii]
+		jjj := cfg.Zones[jj]
+
+		if iii.Priority != jjj.Priority {
+			return iii.Priority >= jjj.Priority
+		}
+
+		if iii.Minutes != jjj.Minutes {
+			return iii.Minutes >= jjj.Minutes
+		}
+
+		return strings.Compare(ii, jj) < 0
+	})
+
+	return all
 }
 
 func init() {
@@ -175,7 +205,11 @@ func (s *sprinkler) pickNext_inlock() string {
 	name := ""
 	priority := 0
 
-	for n, z := range s.config.Zones {
+	names := s.config.zoneOrder()
+
+	for _, n := range names {
+		z := s.config.Zones[n]
+
 		if float64(z.Minutes) < s.stats[n].Minutes() {
 			continue
 		}

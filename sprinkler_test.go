@@ -54,3 +54,27 @@ func TestLoop1(t *testing.T) {
 	test.That(t, "a", test.ShouldEqual, s.running)
 
 }
+
+func TestOrder(t *testing.T) {
+	cfg := sprinklerConfig{
+		Zones: map[string]ZoneConfig{
+			"a": {Minutes: 10},
+			"b": {Minutes: 10},
+			"c": {Minutes: 10},
+			"d": {Minutes: 10},
+			"e": {Minutes: 20},
+			"f": {Minutes: 20},
+			"g": {Minutes: 20},
+			"h": {Minutes: 15, Priority: 2},
+			"i": {Minutes: 15, Priority: 2},
+			"j": {Minutes: 20, Priority: 2},
+			"k": {Minutes: 20, Priority: 2},
+			"l": {Minutes: 1, Priority: 3},
+		},
+	}
+
+	test.That(t, 171, test.ShouldEqual, cfg.totalMinutes())
+
+	test.That(t, cfg.zoneOrder(), test.ShouldResemble, []string{"l", "j", "k", "h", "i", "e", "f", "g", "a", "b", "c", "d"})
+
+}
