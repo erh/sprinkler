@@ -117,6 +117,27 @@ func (s *server) processData(r *http.Request) (string, error) {
 		return fmt.Sprintf("running zone %s for %v minutes", z, m), nil
 	}
 
+	if q.Has("markZoneTime") {
+		z := q.Get("markZoneTime")
+		m, err := strconv.ParseFloat(q.Get("min"), 64)
+		if err != nil {
+			return "", err
+		}
+
+		_, err = s.sprinkler.DoCommand(context.Background(),
+			map[string]interface{}{
+				"cmd":     "markZoneTime",
+				"zone":    z,
+				"minutes": m,
+			})
+
+		if err != nil {
+			return "", fmt.Errorf("cannot mark a zone: %v", err)
+		}
+
+		return fmt.Sprintf("marking zone done %s for %v minutes", z, m), nil
+	}
+
 	if q.Has("pause") {
 		m, err := strconv.ParseFloat(q.Get("pause"), 64)
 		if err != nil {

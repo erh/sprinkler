@@ -265,6 +265,24 @@ func (s *sprinkler) DoCommand(ctx context.Context, cmd map[string]interface{}) (
 		return map[string]interface{}{"till": t}, nil
 	}
 
+	if cmdName == "markZoneTime" {
+		min, ok := cmd["minutes"].(float64)
+		if !ok {
+			return nil, fmt.Errorf("pause command requires a 'minutes' param that is an float64, got [%v] an %T", cmd["minutes"], cmd["minutes"])
+		}
+
+		z, ok := cmd["zone"].(string)
+		if !ok {
+			return nil, fmt.Errorf("zone isn't a string")
+		}
+
+		s.statsLock.Lock()
+		s.stats[z] = s.stats[z] + time.Duration((float64(time.Minute) * min))
+		s.statsLock.Unlock()
+
+		return map[string]interface{}{}, nil
+	}
+
 	return nil, fmt.Errorf("sprinkler do command doesn't understand cmd [%s]", cmdName)
 }
 

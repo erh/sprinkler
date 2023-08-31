@@ -1,5 +1,5 @@
 
-sprinkler: *.go cmd/module/*.go
+sprinkler: *.go cmd/module/*.go *.html
 	go build -o sprinkler cmd/module/cmd.go
 
 test:
