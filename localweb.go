@@ -34,6 +34,7 @@ type server struct {
 type zoneInfo struct {
 	Name         string
 	MinutesSoFar float64
+	MinutesConf  int
 }
 
 type info struct {
@@ -84,7 +85,19 @@ func (s *server) getData() (*info, error) {
 		if ok {
 			z.MinutesSoFar, ok = minRaw.(float64)
 			if !ok {
-				return nil, fmt.Errorf("got bad minutes valud %v %T", minRaw, minRaw)
+				return nil, fmt.Errorf("got bad minutes value: [%v] type:[%T]", minRaw, minRaw)
+			}
+		}
+
+		minRaw, ok = readings[z.Name+"-configured"]
+		if ok {
+			z.MinutesConf, ok = minRaw.(int)
+			if !ok {
+				xx, ok := minRaw.(float64)
+				if !ok {
+					return nil, fmt.Errorf("got bad minutes config value: [%v] type: %T", minRaw, minRaw)
+				}
+				z.MinutesConf = int(xx)
 			}
 		}
 

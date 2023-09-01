@@ -52,6 +52,7 @@ func (s *localJSONStore) readFromDisk(now time.Time) (durData, error) {
 
 func (s *localJSONStore) writeToDisk(now time.Time, dd durData) error {
 	fn := s.fileName(now)
+	fmt.Printf("writing to %v\n", fn)
 	data := dataOut(dd)
 	return os.WriteFile(fn, []byte(data), 0666)
 }
@@ -75,9 +76,7 @@ func (s *localJSONStore) AddWatered(z string, now time.Time, amountToMark time.D
 	d += amountToMark
 	dd[z] = d
 
-	s.writeToDisk(now, dd)
-
-	return d, nil
+	return d, s.writeToDisk(now, dd)
 }
 
 func dataOut(data durData) string {

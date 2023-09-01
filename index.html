@@ -12,8 +12,16 @@
      function pause(minutes) {
        window.location.href = "/?pause=" + minutes;
      }
-
     </script>
+    <style>
+     th {
+       background-color: #838fa3;
+     }
+
+     button {
+       font-size: 1.05em;
+     }
+    </style>
     <meta http-equiv="refresh" content="10; url=/" />
     
   </head>
@@ -39,13 +47,15 @@
     <table border="1">
       <tr>
         <th>Zone</th>
-        <th>Minutes watered today</th>
+        <th>Minutes<br>today so far</th>
+        <th>Minutes<br>configured</th>
         <th>Actions</th>
       </tr>
       {{ range .Zones}}
       <tr>
-        <th>{{.Name}}</th>
+        <th style="text-align: left;" >{{.Name}}</th>
         <td>{{printf "%.2f" .MinutesSoFar}}</td>
+        <td>{{.MinutesConf}}</td>
         <td>
           <button onclick="runZone('{{.Name}}', 2)">Run 2 Minutes</button>
           <button onclick="runZone('{{.Name}}', 10)">Run 10 Minutes</button>

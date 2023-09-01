@@ -3,6 +3,7 @@ package sprinkler
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -26,8 +27,8 @@ type ZoneConfig struct {
 
 type sprinklerConfig struct {
 	Board     string
-	StartHour int `json:"start_hour"`
-	DataDir   string
+	StartHour int    `json:"start_hour"`
+	DataDir   string `json:"data_dir"`
 	Zones     map[string]ZoneConfig
 }
 
@@ -146,6 +147,12 @@ func (s *sprinkler) init() error {
 	if s.config.DataDir == "" {
 		s.config.DataDir = "sprinkler_data"
 	}
+
+	err = os.MkdirAll(s.config.DataDir, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
 	s.stats, err = NewLocalJSONStore(s.config.DataDir)
 	if err != nil {
 		return err
@@ -314,6 +321,7 @@ func (s *sprinkler) Readings(ctx context.Context, extra map[string]interface{}) 
 			return nil, err
 		}
 		m[n] = v.Minutes()
+		m[fmt.Sprintf("%s-configured", n)] = s.config.Zones[n].Minutes
 	}
 	m["running"] = s.running
 
