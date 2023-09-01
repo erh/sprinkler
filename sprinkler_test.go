@@ -2,6 +2,7 @@ package sprinkler
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -21,23 +22,32 @@ var testSimpleConfig = sprinklerConfig{
 	},
 }
 
-func addDummyPins(s *sprinkler) {
+func addDummyPins(s *sprinkler) func() {
+	dir, err := os.MkdirTemp("", "sp_test")
+	if err != nil {
+		panic(err)
+	}
+	s.config.DataDir = dir
 	s.init()
 	s.pins = map[string]board.GPIOPin{}
 	for n := range s.config.Zones {
 		s.pins[n] = &fake.GPIOPin{}
 	}
+	return func() { os.RemoveAll(dir) }
 }
 
 func TestPickNext(t *testing.T) {
 	s := sprinkler{config: &testSimpleConfig}
-	test.That(t, "b", test.ShouldEqual, s.pickNext_inlock())
+	f := addDummyPins(&s)
+	defer f()
+	test.That(t, s.pickNext_inlock(time.Now()), test.ShouldEqual, "b")
 }
 
 func TestLoop1(t *testing.T) {
 	ctx := context.Background()
 	s := sprinkler{config: &testSimpleConfig, logger: golog.NewTestLogger(t)}
-	addDummyPins(&s)
+	f := addDummyPins(&s)
+	defer f()
 
 	now := time.Now()
 	test.That(t, s.doLoop(ctx, now), test.ShouldBeNil)
@@ -46,11 +56,13 @@ func TestLoop1(t *testing.T) {
 	now = now.Add(time.Minute)
 	test.That(t, s.doLoop(ctx, now), test.ShouldBeNil)
 	test.That(t, "b", test.ShouldEqual, s.running)
-	test.That(t, time.Minute, test.ShouldAlmostEqual, s.stats["b"])
+	d, _ := s.stats.AmountWatered("b", now)
+	test.That(t, time.Minute, test.ShouldAlmostEqual, d)
 
 	now = now.Add(20 * time.Minute)
 	test.That(t, s.doLoop(ctx, now), test.ShouldBeNil)
-	test.That(t, 21*time.Minute, test.ShouldAlmostEqual, s.stats["b"])
+	d, _ = s.stats.AmountWatered("b", now)
+	test.That(t, 21*time.Minute, test.ShouldAlmostEqual, d)
 	test.That(t, "a", test.ShouldEqual, s.running)
 
 }

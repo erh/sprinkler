@@ -27,6 +27,7 @@ type ZoneConfig struct {
 type sprinklerConfig struct {
 	Board     string
 	StartHour int `json:"start_hour"`
+	DataDir   string
 	Zones     map[string]ZoneConfig
 }
 
@@ -91,7 +92,10 @@ func newSprinkler(ctx context.Context, deps resource.Dependencies, config resour
 	}
 
 	s := &sprinkler{config: newConf, name: config.ResourceName(), logger: logger}
-	s.init()
+	err = s.init()
+	if err != nil {
+		return nil, err
+	}
 
 	r, err := deps.Lookup(board.Named(s.config.Board))
 	if err != nil {
@@ -128,17 +132,25 @@ type sprinkler struct {
 	pins     map[string]board.GPIOPin
 
 	statsLock     sync.Mutex
-	stats         map[string]time.Duration // how many minutes each zone has been running
-	running       string                   // what sprinkler is running now
+	stats         DataAPI
+	running       string // what sprinkler is running now
 	lastLoop      time.Time
 	pauseTillTime time.Time
 	forceZone     string
 	forceTill     time.Time
 }
 
-func (s *sprinkler) init() {
+func (s *sprinkler) init() error {
 	s.pins = map[string]board.GPIOPin{}
-	s.stats = map[string]time.Duration{}
+	var err error
+	if s.config.DataDir == "" {
+		s.config.DataDir = "sprinkler_data"
+	}
+	s.stats, err = NewLocalJSONStore(s.config.DataDir)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *sprinkler) Name() resource.Name {
@@ -172,9 +184,10 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 	s.statsLock.Lock()
 
 	if s.running != "" { // note: this has to be first
-		d := s.stats[s.running]
-		d += now.Sub(s.lastLoop)
-		s.stats[s.running] = d
+		_, err := s.stats.AddWatered(s.running, now, now.Sub(s.lastLoop))
+		if err != nil {
+			return err
+		}
 	}
 	s.lastLoop = now
 
@@ -195,9 +208,6 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 	}
 
 	if now.Hour() < 1 || now.Hour() < s.config.StartHour {
-		for n := range s.stats {
-			s.stats[n] = 0
-		}
 		s.running = ""
 		s.lastLoop = now
 		s.statsLock.Unlock()
@@ -205,7 +215,7 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 	}
 
 	prev := s.running
-	s.running = s.pickNext_inlock()
+	s.running = s.pickNext_inlock(now)
 	s.statsLock.Unlock()
 
 	if prev == s.running {
@@ -215,12 +225,16 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 	return s.stopAllExcept(ctx, s.running)
 }
 
-func (s *sprinkler) pickNext_inlock() string {
+func (s *sprinkler) pickNext_inlock(now time.Time) string {
 	names := s.config.zoneOrder()
-
 	for _, n := range names {
 		z := s.config.Zones[n]
-		if float64(z.Minutes) >= s.stats[n].Minutes() {
+		d, err := s.stats.AmountWatered(n, now)
+		if err != nil {
+			panic(err)
+		}
+
+		if float64(z.Minutes) >= d.Minutes() {
 			return n
 		}
 	}
@@ -277,10 +291,10 @@ func (s *sprinkler) DoCommand(ctx context.Context, cmd map[string]interface{}) (
 		}
 
 		s.statsLock.Lock()
-		s.stats[z] = s.stats[z] + time.Duration((float64(time.Minute) * min))
+		_, err := s.stats.AddWatered(z, time.Now(), time.Duration((float64(time.Minute) * min)))
 		s.statsLock.Unlock()
 
-		return map[string]interface{}{}, nil
+		return map[string]interface{}{}, err
 	}
 
 	return nil, fmt.Errorf("sprinkler do command doesn't understand cmd [%s]", cmdName)
@@ -289,10 +303,16 @@ func (s *sprinkler) DoCommand(ctx context.Context, cmd map[string]interface{}) (
 func (s *sprinkler) Readings(ctx context.Context, extra map[string]interface{}) (map[string]interface{}, error) {
 	m := map[string]interface{}{}
 
+	now := time.Now()
+
 	s.statsLock.Lock()
 	defer s.statsLock.Unlock()
 
-	for n, v := range s.stats {
+	for _, n := range s.config.zoneOrder() {
+		v, err := s.stats.AmountWatered(n, now)
+		if err != nil {
+			return nil, err
+		}
 		m[n] = v.Minutes()
 	}
 	m["running"] = s.running
