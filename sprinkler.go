@@ -26,10 +26,11 @@ type ZoneConfig struct {
 }
 
 type sprinklerConfig struct {
-	Board     string
-	StartHour int    `json:"start_hour"`
-	DataDir   string `json:"data_dir"`
-	Zones     map[string]ZoneConfig
+	Board          string
+	StartHour      int    `json:"start_hour"`
+	DataDir        string `json:"data_dir"`
+	Zones          map[string]ZoneConfig
+	WeatherStation string
 }
 
 func (cfg sprinklerConfig) Validate(path string) ([]string, error) {
@@ -131,6 +132,8 @@ type sprinkler struct {
 
 	theBoard board.Board
 	pins     map[string]board.GPIOPin
+
+	rc rainCache
 
 	statsLock     sync.Mutex
 	stats         DataAPI
@@ -241,12 +244,28 @@ func (s *sprinkler) pickNext_inlock(now time.Time) string {
 			panic(err)
 		}
 
-		if float64(z.Minutes) >= d.Minutes() {
+		min := s.adjustMinutes(float64(z.Minutes))
+
+		if min >= d.Minutes() {
 			return n
 		}
 	}
 
 	return ""
+}
+
+// takes the number of configured minutes and adjusts for rain
+func (s *sprinkler) adjustMinutes(min float64) float64 {
+	if s.config.WeatherStation == "" {
+		return min
+	}
+
+	rain, err := s.rc.rain(s.config.WeatherStation, 24)
+	if err != nil {
+		s.logger.Warnf("cannot get rain info %v", err)
+	}
+
+	return (10 - rain) / 10
 }
 
 func (s *sprinkler) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {

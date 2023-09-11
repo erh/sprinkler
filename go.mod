@@ -4,7 +4,10 @@ go 1.19
 
 require (
 	github.com/edaniels/golog v0.0.0-20230215213219-28954395e8d0
+	github.com/icodealot/noaa v0.0.0-00010101000000-000000000000
 	go.viam.com/rdk v0.7.2
+	go.viam.com/test v1.1.1-0.20220913152726-5da9916c08a2
+	go.viam.com/utils v0.1.38
 )
 
 require (
@@ -133,8 +136,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
 	go.viam.com/api v0.1.164 // indirect
-	go.viam.com/test v1.1.1-0.20220913152726-5da9916c08a2 // indirect
-	go.viam.com/utils v0.1.38 // indirect
 	goji.io v2.0.2+incompatible // indirect
 	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29 // indirect
@@ -159,3 +160,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
+
+replace github.com/icodealot/noaa => github.com/erh/noaa v0.0.0-20230820151124-82d1ed41a726
