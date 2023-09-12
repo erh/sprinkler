@@ -391,11 +391,11 @@ func (s *sprinkler) Readings(ctx context.Context, extra map[string]interface{}) 
 	m["force_zone"] = s.forceZone
 	m["force_till"] = s.forceTill.Format(time.UnixDate)
 
-	var err error
-	m["rain"], err = s.stats.AmountWatered("rain", now)
+	v, err := s.stats.AmountWatered("rain", now)
 	if err != nil {
 		return nil, err
 	}
+	m["rain"] = v.Minutes()
 
 	return m, nil
 }
