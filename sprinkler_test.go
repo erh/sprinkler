@@ -90,3 +90,36 @@ func TestOrder(t *testing.T) {
 	test.That(t, cfg.zoneOrder(), test.ShouldResemble, []string{"l", "j", "k", "h", "i", "e", "f", "g", "a", "b", "c", "d"})
 
 }
+
+func TestRainFull(t *testing.T) {
+	s := sprinkler{config: &testSimpleConfig}
+	f := addDummyPins(&s)
+	defer f()
+
+	now := time.Now()
+
+	mode, err := s.doRainPrediction_inlock(now)
+	test.That(t, err, test.ShouldBeNil)
+	test.That(t, mode, test.ShouldEqual, rainNotConf)
+
+	mode, err = s.doRainPrediction_inlock(now)
+	test.That(t, err, test.ShouldBeNil)
+	test.That(t, mode, test.ShouldEqual, rainTooSoon)
+
+	s.lastRainCheck = time.UnixMilli(0)
+	s.config.Lat = rainMagic
+	s.config.Long = rainMagic
+
+	mode, err = s.doRainPrediction_inlock(now)
+	test.That(t, err, test.ShouldBeNil)
+	test.That(t, mode, test.ShouldEqual, rainDidIt)
+
+	d, _ := s.stats.AmountWatered("b", now)
+	test.That(t, d, test.ShouldAlmostEqual, time.Minute*10)
+
+	s.lastRainCheck = time.UnixMilli(0)
+	mode, err = s.doRainPrediction_inlock(now)
+	test.That(t, err, test.ShouldBeNil)
+	test.That(t, mode, test.ShouldEqual, rainDone)
+
+}

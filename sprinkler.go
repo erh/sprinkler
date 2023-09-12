@@ -26,11 +26,12 @@ type ZoneConfig struct {
 }
 
 type sprinklerConfig struct {
-	Board          string
-	StartHour      int    `json:"start_hour"`
-	DataDir        string `json:"data_dir"`
-	Zones          map[string]ZoneConfig
-	WeatherStation string
+	Board     string
+	StartHour int    `json:"start_hour"`
+	DataDir   string `json:"data_dir"`
+	Zones     map[string]ZoneConfig
+	Lat       string
+	Long      string
 }
 
 func (cfg sprinklerConfig) Validate(path string) ([]string, error) {
@@ -133,8 +134,6 @@ type sprinkler struct {
 	theBoard board.Board
 	pins     map[string]board.GPIOPin
 
-	rc rainCache
-
 	statsLock     sync.Mutex
 	stats         DataAPI
 	running       string // what sprinkler is running now
@@ -142,6 +141,8 @@ type sprinkler struct {
 	pauseTillTime time.Time
 	forceZone     string
 	forceTill     time.Time
+
+	lastRainCheck time.Time
 }
 
 func (s *sprinkler) init() error {
@@ -189,6 +190,52 @@ func (s *sprinkler) run() {
 	}
 }
 
+const (
+	rainTooSoon int = 1
+	rainDone        = 2
+	rainNotConf     = 3
+	rainDidIt       = 4
+)
+
+func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
+
+	if now.Sub(s.lastRainCheck) < (time.Minute * 10) {
+		return rainTooSoon, nil
+	}
+	s.lastRainCheck = now
+
+	amt, err := s.stats.AmountWatered("rain", now)
+	if err != nil {
+		return 0, err
+	}
+
+	if amt > 0 {
+		return rainDone, nil
+	}
+
+	if s.config.Lat == "" || s.config.Long == "" {
+		return rainNotConf, nil
+	}
+
+	rain, err := rainPrediction(s.config.Lat, s.config.Long, 24)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, n := range s.config.zoneOrder() {
+		z := s.config.Zones[n]
+
+		toAdd := time.Duration(float64(time.Minute) * float64(z.Minutes) * rain / 10)
+		_, err = s.stats.AddWatered(n, now, toAdd)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	s.stats.AddWatered("rain", now, time.Second)
+	return rainDidIt, nil
+}
+
 func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 
 	s.statsLock.Lock()
@@ -200,6 +247,11 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 		}
 	}
 	s.lastLoop = now
+
+	_, err := s.doRainPrediction_inlock(now)
+	if err != nil {
+		s.logger.Warnf("cannot do rain prediction %v", err)
+	}
 
 	if now.Before(s.forceTill) && s.forceZone != "" {
 		z := s.forceZone
@@ -244,7 +296,7 @@ func (s *sprinkler) pickNext_inlock(now time.Time) string {
 			panic(err)
 		}
 
-		min := s.adjustMinutes(float64(z.Minutes))
+		min := float64(z.Minutes)
 
 		if min >= d.Minutes() {
 			return n
@@ -252,20 +304,6 @@ func (s *sprinkler) pickNext_inlock(now time.Time) string {
 	}
 
 	return ""
-}
-
-// takes the number of configured minutes and adjusts for rain
-func (s *sprinkler) adjustMinutes(min float64) float64 {
-	if s.config.WeatherStation == "" {
-		return min
-	}
-
-	rain, err := s.rc.rain(s.config.WeatherStation, 24)
-	if err != nil {
-		s.logger.Warnf("cannot get rain info %v", err)
-	}
-
-	return (10 - rain) / 10
 }
 
 func (s *sprinkler) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
@@ -352,6 +390,12 @@ func (s *sprinkler) Readings(ctx context.Context, extra map[string]interface{}) 
 
 	m["force_zone"] = s.forceZone
 	m["force_till"] = s.forceTill.Format(time.UnixDate)
+
+	var err error
+	m["rain"], err = s.stats.AmountWatered("rain", now)
+	if err != nil {
+		return nil, err
+	}
 
 	return m, nil
 }

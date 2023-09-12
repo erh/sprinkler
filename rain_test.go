@@ -7,6 +7,11 @@ import (
 	"go.viam.com/test"
 )
 
+func TestRain2(t *testing.T) {
+	_, err := rainPrediction("40.6928592", "-74.3045002", 24)
+	test.That(t, err, test.ShouldBeNil)
+}
+
 func TestRain(t *testing.T) {
 	_, err := rain("KJFK", 24)
 	test.That(t, err, test.ShouldBeNil)
