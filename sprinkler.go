@@ -232,7 +232,7 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 		}
 	}
 
-	s.stats.AddWatered("rain", now, time.Second)
+	s.stats.AddWatered("rain", now, time.Second+time.Duration(rain*float64(time.Minute)))
 	return rainDidIt, nil
 }
 
