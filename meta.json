@@ -1,0 +1,13 @@
+{
+  "module_id": "erh:sprinkler",
+  "visibility": "public",
+  "url": "https://github.com/erh/sprinkler",
+  "description": "viam module for controlling a sprinkler system",
+  "models": [
+      {
+          "api": "rdk:component:sensor",
+          "model": "erh:sprinkler:sprinkler"
+      }
+  ],
+  "entrypoint": "./bin/sprinkler"
+}

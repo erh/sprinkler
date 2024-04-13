@@ -16,7 +16,7 @@ import (
 	"go.viam.com/utils"
 )
 
-var SprinklerModel = resource.DefaultModelFamily.WithModel("sprinkler")
+var SprinklerModel = resource.ModelNamespace("erh").WithFamily("sprinkler").WithModel("sprinkler")
 
 type ZoneConfig struct {
 	Pin      string

@@ -1,6 +1,7 @@
 
 sprinkler: *.go cmd/module/*.go *.html
-	go build -o sprinkler cmd/module/cmd.go
+	-mkdir bin
+	go build -o bin/sprinkler cmd/module/cmd.go
 
 test:
 	go test

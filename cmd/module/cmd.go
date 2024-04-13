@@ -19,7 +19,7 @@ func main() {
 func realMain() error {
 
 	ctx := context.Background()
-	logger := logging.NewDebugLogger("client")
+	logger := logging.NewDebugLogger("sprinklermod")
 
 	myMod, err := module.NewModuleFromArgs(ctx, logger)
 	if err != nil {
