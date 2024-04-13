@@ -8,14 +8,14 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/edaniels/golog"
 	"go.viam.com/rdk/components/sensor"
+	"go.viam.com/rdk/logging"
 )
 
 //go:embed index.html
 var indexHtmlBytes []byte
 
-func RunServer(ctx context.Context, logger golog.Logger, bind string, sprinkler sensor.Sensor) error {
+func RunServer(ctx context.Context, logger logging.Logger, bind string, sprinkler sensor.Sensor) error {
 	s := &server{
 		logger:    logger,
 		sprinkler: sprinkler,
@@ -27,7 +27,7 @@ func RunServer(ctx context.Context, logger golog.Logger, bind string, sprinkler 
 }
 
 type server struct {
-	logger    golog.Logger
+	logger    logging.Logger
 	sprinkler sensor.Sensor
 }
 

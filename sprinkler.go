@@ -9,10 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edaniels/golog"
-
 	"go.viam.com/rdk/components/board"
 	"go.viam.com/rdk/components/sensor"
+	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/resource"
 	"go.viam.com/utils"
 )
@@ -88,7 +87,7 @@ func init() {
 		})
 }
 
-func newSprinkler(ctx context.Context, deps resource.Dependencies, config resource.Config, logger golog.Logger) (sensor.Sensor, error) {
+func newSprinkler(ctx context.Context, deps resource.Dependencies, config resource.Config, logger logging.Logger) (sensor.Sensor, error) {
 	newConf, err := resource.NativeConfig[*sprinklerConfig](config)
 	if err != nil {
 		return nil, err
@@ -126,7 +125,7 @@ type sprinkler struct {
 
 	config *sprinklerConfig
 	name   resource.Name
-	logger golog.Logger
+	logger logging.Logger
 
 	backgroundContext context.Context
 	backgroundCancel  context.CancelFunc

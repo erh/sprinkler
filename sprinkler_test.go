@@ -6,10 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/edaniels/golog"
-
 	"go.viam.com/rdk/components/board"
 	"go.viam.com/rdk/components/board/fake"
+	"go.viam.com/rdk/logging"
 
 	"go.viam.com/test"
 )
@@ -45,7 +44,7 @@ func TestPickNext(t *testing.T) {
 
 func TestLoop1(t *testing.T) {
 	ctx := context.Background()
-	s := sprinkler{config: &testSimpleConfig, logger: golog.NewTestLogger(t)}
+	s := sprinkler{config: &testSimpleConfig, logger: logging.NewTestLogger(t)}
 	f := addDummyPins(&s)
 	defer f()
 

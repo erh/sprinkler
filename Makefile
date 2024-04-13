@@ -7,3 +7,8 @@ test:
 
 lint:
 	gofmt -w -s .
+
+updaterdk:
+	go get go.viam.com/rdk@latest
+	go mod tidy
+
