@@ -1,5 +1,5 @@
 
-sprinkler: *.go cmd/module/*.go *.html
+bin/sprinkler: *.go cmd/module/*.go *.html
 	-mkdir bin
 	go build -o bin/sprinkler cmd/module/cmd.go
 
@@ -13,3 +13,5 @@ updaterdk:
 	go get go.viam.com/rdk@latest
 	go mod tidy
 
+module: bin/sprinkler
+	tar czf module.tar.gz bin/sprinkler
