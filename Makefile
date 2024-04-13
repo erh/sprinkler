@@ -1,5 +1,5 @@
 
-bin/sprinkler: *.go cmd/module/*.go *.html
+bin/sprinkler: *.go cmd/module/*.go *.html *.mod
 	-mkdir bin
 	go build -o bin/sprinkler cmd/module/cmd.go
 
