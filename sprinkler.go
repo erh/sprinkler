@@ -203,7 +203,7 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 	}
 	s.lastRainCheck = now
 
-	amt, err := s.stats.AmountWatered("rain", now)
+	amt, err := s.stats.AmountWatered("rain_fake", now)
 	if err != nil {
 		return 0, err
 	}
@@ -216,22 +216,34 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 		return rainNotConf, nil
 	}
 
-	rain, err := rainPrediction(s.config.Lat, s.config.Long, 24)
+	rain, maxTemp, err := rainPrediction(s.config.Lat, s.config.Long, 24)
 	if err != nil {
 		return 0, err
 	}
+
+	maxTemp = maxTemp - 21
+	if maxTemp < 0 {
+		maxTemp = 0
+	}
+	maxTemp = maxTemp / 10 // so 90f gets you about 10c diff, so maxTemp here is 2
 
 	for _, n := range s.config.zoneOrder() {
 		z := s.config.Zones[n]
 
 		toAdd := time.Duration(float64(time.Minute) * float64(z.Minutes) * rain / 10)
+		temp := maxTemp * float64(z.Minutes)
+		if temp > 0 {
+			fmt.Printf("adding %v minutes to zone %v because it's hot\n", temp, n)
+		}
+		toAdd -= time.Duration(-1 * temp)
 		_, err = s.stats.AddWatered(n, now, toAdd)
 		if err != nil {
 			return 0, err
 		}
+
 	}
 
-	s.stats.AddWatered("rain", now, time.Second+time.Duration(rain*float64(time.Minute)))
+	s.stats.AddWatered("rain_fake", now, time.Second+time.Duration(rain*float64(time.Minute)))
 	return rainDidIt, nil
 }
 
