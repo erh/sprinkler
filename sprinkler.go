@@ -203,7 +203,7 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 	}
 	s.lastRainCheck = now
 
-	amt, err := s.stats.AmountWatered("rain_fake", now)
+	amt, err := s.stats.AmountWatered("rain_sensor", now)
 	if err != nil {
 		return 0, err
 	}
@@ -232,10 +232,12 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 
 		toAdd := time.Duration(float64(time.Minute) * float64(z.Minutes) * rain / 10)
 		temp := maxTemp * float64(z.Minutes)
+
 		if temp > 0 {
-			fmt.Printf("adding %v minutes to zone %v because it's hot\n", temp, n)
+			before := toAdd
+			toAdd -= time.Duration(temp * float64(time.Minute))
+			fmt.Printf("adding %v minutes to zone %v because it's hot %v -> %v\n", temp, n, before, toAdd)
 		}
-		toAdd -= time.Duration(-1 * temp)
 		_, err = s.stats.AddWatered(n, now, toAdd)
 		if err != nil {
 			return 0, err
@@ -243,7 +245,7 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 
 	}
 
-	s.stats.AddWatered("rain_fake", now, time.Second+time.Duration(rain*float64(time.Minute)))
+	s.stats.AddWatered("rain_sensor", now, time.Second+time.Duration(rain*float64(time.Minute)))
 	return rainDidIt, nil
 }
 
