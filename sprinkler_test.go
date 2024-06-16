@@ -114,7 +114,7 @@ func TestRainFull(t *testing.T) {
 	test.That(t, mode, test.ShouldEqual, rainDidIt)
 
 	d, _ := s.stats.AmountWatered("b", now)
-	test.That(t, d / time.Minute, test.ShouldAlmostEqual, 0)
+	test.That(t, d/time.Minute, test.ShouldAlmostEqual, 0)
 
 	s.lastRainCheck = time.UnixMilli(0)
 	mode, err = s.doRainPrediction_inlock(now)
