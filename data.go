@@ -22,13 +22,15 @@ type DataAPI interface {
 type durData map[string]time.Duration
 
 type localJSONStore struct {
-	root string
-	data map[string]time.Duration // how many minutes each zone has been running
+	root          string
+	data          map[string]time.Duration // how many minutes each zone has been running
+	filenamePrint map[string]bool
 }
 
 func NewLocalJSONStore(root string) (DataAPI, error) {
 	s := &localJSONStore{root: root}
 	s.data = map[string]time.Duration{}
+	s.filenamePrint = map[string]bool{}
 	return s, nil
 }
 
@@ -52,7 +54,10 @@ func (s *localJSONStore) readFromDisk(now time.Time) (durData, error) {
 
 func (s *localJSONStore) writeToDisk(now time.Time, dd durData) error {
 	fn := s.fileName(now)
-	fmt.Printf("writing to %v\n", fn)
+	if !s.filenamePrint[fn] {
+		fmt.Printf("writing to %v\n", fn)
+		s.filenamePrint[fn] = true
+	}
 	data := dataOut(dd)
 	return os.WriteFile(fn, []byte(data), 0666)
 }
@@ -83,7 +88,7 @@ func dataOut(data durData) string {
 	var buffer bytes.Buffer
 
 	for k, v := range data {
-		buffer.WriteString(fmt.Sprintf("%s %.02f\n", k, v.Minutes()))
+		buffer.WriteString(fmt.Sprintf("%s %.06f\n", k, v.Minutes()))
 	}
 
 	return buffer.String()

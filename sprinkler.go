@@ -181,7 +181,7 @@ func (s *sprinkler) run() {
 			s.logger.Errorf("error doing sprinkler loop: %v", err)
 		}
 
-		if !utils.SelectContextOrWait(s.backgroundContext, 1*time.Second) {
+		if !utils.SelectContextOrWait(s.backgroundContext, 10*time.Second) {
 			s.logger.Errorf("stopping sprinkler")
 			return
 		}
@@ -262,11 +262,12 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 
 	if s.running != "" { // note: this has to be first
 		amount := now.Sub(s.lastLoop)
-		fmt.Printf("adding %v to %v\n", amount, s.running)
-		_, err := s.stats.AddWatered(s.running, now, amount)
+		total, err := s.stats.AddWatered(s.running, now, amount)
 		if err != nil {
 			return err
 		}
+		fmt.Printf("adding %v to %v, now at : %v\n", amount, s.running, total)
+
 	}
 	s.lastLoop = now
 

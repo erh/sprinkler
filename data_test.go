@@ -13,7 +13,7 @@ func TestDataPrimitives(t *testing.T) {
 		"a": 150 * time.Second,
 	}
 
-	test.That(t, dataOut(dd), test.ShouldEqual, "a 2.50\n")
+	test.That(t, dataOut(dd), test.ShouldEqual, "a 2.500000\n")
 
 	dd2, err := dataIn(dataOut(dd))
 	test.That(t, err, test.ShouldBeNil)
@@ -53,6 +53,15 @@ func TestLocalJSONStore(t *testing.T) {
 	d, err = s2.AmountWatered("a", now)
 	test.That(t, err, test.ShouldBeNil)
 	test.That(t, d, test.ShouldEqual, 2*time.Minute)
+
+	for i := 0; i < 20*60; i++ {
+		_, err = s2.AddWatered("zz", now, time.Second)
+		test.That(t, err, test.ShouldBeNil)
+	}
+	d, err = s2.AmountWatered("zz", now)
+	test.That(t, err, test.ShouldBeNil)
+	test.That(t, float64(d), test.ShouldAlmostEqual, float64(20*time.Minute), float64(time.Second))
+
 }
 
 func BenchmarkJSONStore(b *testing.B) {
