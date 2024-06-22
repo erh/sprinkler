@@ -223,7 +223,7 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 
 	fmt.Printf("weather rain: %v temp: %v\n", rain, maxTempReal)
 
-	tempAdjust := maxTempReal - 21
+	tempAdjust := maxTempReal - 17
 	if tempAdjust < 0 {
 		tempAdjust = 0
 	}
