@@ -3,6 +3,7 @@ package sprinkler
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strings"
@@ -223,11 +224,7 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 
 	fmt.Printf("weather rain: %v temp: %v\n", rain, maxTempReal)
 
-	tempAdjust := maxTempReal - 17
-	if tempAdjust < 0 {
-		tempAdjust = 0
-	}
-	tempAdjust = tempAdjust / 10 // so 90f gets you about 10c diff, so maxTemp here is 2
+	tempAdjust := heatAdjustmentCelsiusExtraPercentage(maxTempReal)
 
 	for _, n := range s.config.zoneOrder() {
 		z := s.config.Zones[n]
@@ -254,6 +251,17 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 
 	s.stats.AddWatered("rain_sensor", now, time.Second+time.Duration(rain*float64(time.Minute)))
 	return rainDidIt, nil
+}
+
+// returns 0 -> some number
+func heatAdjustmentCelsiusExtraPercentage(temp float64) float64 {
+	adjust := temp - 17
+	if adjust <= 0 {
+		return 0
+	}
+	adjust = math.Pow(adjust, 1.58)
+	adjust = adjust / 35
+	return adjust
 }
 
 func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
