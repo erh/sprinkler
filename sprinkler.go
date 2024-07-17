@@ -232,7 +232,7 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 		totalToAdd := time.Duration(0)
 
 		if rain > 0 {
-			toAdd := time.Duration(float64(time.Minute) * float64(z.Minutes) * rain / 10)
+			toAdd := time.Duration(float64(time.Minute) * float64(z.Minutes) * rain / 20)
 			totalToAdd += toAdd
 			fmt.Printf("remove %v minutes to zone %v because it rained (%v)\n", toAdd, n, rain)
 		}
@@ -300,7 +300,7 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 		return s.stopAllExcept(ctx, "")
 	}
 
-	if now.Hour() < 1 || now.Hour() < s.config.StartHour {
+	if s.config.StartHour >= 0 && (now.Hour() < 1 || now.Hour() < s.config.StartHour) {
 		s.running = ""
 		s.lastLoop = now
 		s.statsLock.Unlock()

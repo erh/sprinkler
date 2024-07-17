@@ -15,6 +15,7 @@ import (
 )
 
 var testSimpleConfig = sprinklerConfig{
+	StartHour: -1,
 	Zones: map[string]ZoneConfig{
 		"a": {Minutes: 10},
 		"b": {Minutes: 20},
