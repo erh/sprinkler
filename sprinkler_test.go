@@ -2,7 +2,7 @@ package sprinkler
 
 import (
 	"context"
-	//"fmt"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -126,20 +126,21 @@ func TestRainFull(t *testing.T) {
 }
 
 func TestHeatAdjustmentCelsiusExtraPercentage(t *testing.T) {
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(0), test.ShouldEqual, 0)
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(16), test.ShouldEqual, 0)
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(17), test.ShouldEqual, 0)
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(FlatCelsius), test.ShouldEqual, 0)
 
-	/*
-		for i := 0.0; i < 20; i++ {
-			c := i + 17
-			f := 32 + (c *1.8 )
-			fmt.Printf("c: %0.2f f: %0.2f ratio: %0.2f\n", c, f, heatAdjustmentCelsiusExtraPercentage(c))
-		}
-	*/
+	for c := -5.0; c < 36; c++ {
+		f := 32 + (c * 1.8)
+		fmt.Printf("c: %0.2f f: %0.2f delta: %v ratio: %0.2f\n", c, f, c-FlatCelsius, heatAdjustmentCelsiusExtraPercentage(c))
+	}
 
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(18), test.ShouldBeGreaterThan, 0)   // 64.4f
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(18), test.ShouldBeLessThan, 0) // 64.4f
+
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(22.1), test.ShouldBeGreaterThan, 0) // 64.4f
 	test.That(t, heatAdjustmentCelsiusExtraPercentage(23), test.ShouldBeLessThan, 0.5)    // 73.4f
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(31), test.ShouldBeGreaterThan, 1.8) // 87.8f
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(31), test.ShouldBeGreaterThan, 1.7) // 87.8f
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(36), test.ShouldBeLessThan, 3.0)    // 87.8f
 
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(0), test.ShouldBeLessThan, -1)   // freezing
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(5), test.ShouldBeLessThan, -1)   // freezing
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(10), test.ShouldBeLessThan, -.5) // freezing
 }

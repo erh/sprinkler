@@ -3,7 +3,6 @@ package sprinkler
 import (
 	"context"
 	"fmt"
-	"math"
 	"os"
 	"sort"
 	"strings"
@@ -242,6 +241,13 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 			totalToAdd -= toAdd
 			fmt.Printf("adding %v minutes to zone %v because it's hot (%v)\n", toAdd, n, maxTempReal)
 		}
+
+		if tempAdjust < 0 {
+			toAdd := time.Duration(tempAdjust * float64(z.Minutes) * float64(time.Minute))
+			totalToAdd -= toAdd
+			fmt.Printf("adding %v minutes to zone %v because it's cold (%v)\n", toAdd, n, maxTempReal)
+		}
+
 		_, err = s.stats.AddWatered(n, now, totalToAdd)
 		if err != nil {
 			return 0, err
@@ -254,14 +260,19 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 }
 
 // returns 0 -> some number
+const FlatCelsius = 22.0
+
 func heatAdjustmentCelsiusExtraPercentage(temp float64) float64 {
-	adjust := temp - 17
-	if adjust <= 0 {
+	adjust := temp - FlatCelsius
+	if adjust == 0 {
 		return 0
 	}
-	adjust = math.Pow(adjust, 1.58)
-	adjust = adjust / 35
-	return adjust
+
+	if adjust > 0 {
+		return adjust / 5
+	}
+
+	return adjust / 15
 }
 
 func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
