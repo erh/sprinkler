@@ -1,6 +1,5 @@
 
-bin/sprinkler: *.go cmd/module/*.go *.html *.mod
-	-mkdir bin
+bin/sprinkler: bin *.go cmd/module/*.go *.html *.mod
 	go build -o bin/sprinkler cmd/module/cmd.go
 
 test:
@@ -15,3 +14,7 @@ updaterdk:
 
 module: bin/sprinkler
 	tar czf module.tar.gz bin/sprinkler
+
+bin:
+	mkdir bin
+

@@ -33,14 +33,14 @@ type sprinklerConfig struct {
 	Long      string
 }
 
-func (cfg sprinklerConfig) Validate(path string) ([]string, error) {
+func (cfg sprinklerConfig) Validate(path string) ([]string, []string, error) {
 	deps := []string{cfg.Board}
 
 	if cfg.Board == "" {
-		return nil, utils.NewConfigValidationFieldRequiredError(path, "board")
+		return nil, nil, utils.NewConfigValidationFieldRequiredError(path, "board")
 	}
 
-	return deps, nil
+	return deps, nil, nil
 }
 
 func (cfg sprinklerConfig) totalMinutes() int {
