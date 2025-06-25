@@ -268,8 +268,8 @@ func heatAdjustmentCelsiusExtraPercentage(temp float64) float64 {
 		return 0
 	}
 
-	if adjust > 0 {
-		return min(adjust/5, 2)
+	if adjust > 0 { // it's hot
+		return min(adjust/6, 2)
 	}
 
 	return adjust / 15

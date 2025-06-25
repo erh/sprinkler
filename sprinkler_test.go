@@ -136,10 +136,10 @@ func TestHeatAdjustmentCelsiusExtraPercentage(t *testing.T) {
 
 	test.That(t, heatAdjustmentCelsiusExtraPercentage(18), test.ShouldBeLessThan, 0) // 64.4f
 
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(22.1), test.ShouldBeGreaterThan, 0)       // 64.4f
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(23), test.ShouldBeLessThan, 0.5)          // 73.4f
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(31), test.ShouldBeGreaterThan, 1.7)       // 87.8f
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(36), test.ShouldBeLessThanOrEqualTo, 2.0) // 87.8f
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(22.1), test.ShouldBeGreaterThan, 0)          // 64.4f
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(23), test.ShouldBeLessThan, 0.5)             // 73.4f
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(31), test.ShouldBeGreaterThanOrEqualTo, 1.5) // 87.8f
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(36), test.ShouldBeLessThanOrEqualTo, 2.0)    // 87.8f
 
 	test.That(t, heatAdjustmentCelsiusExtraPercentage(0), test.ShouldBeLessThan, -1)   // freezing
 	test.That(t, heatAdjustmentCelsiusExtraPercentage(5), test.ShouldBeLessThan, -1)   // freezing
