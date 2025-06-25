@@ -2,7 +2,6 @@ package sprinkler
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -126,19 +125,21 @@ func TestRainFull(t *testing.T) {
 }
 
 func TestHeatAdjustmentCelsiusExtraPercentage(t *testing.T) {
+	logger := logging.NewTestLogger(t)
+
 	test.That(t, heatAdjustmentCelsiusExtraPercentage(FlatCelsius), test.ShouldEqual, 0)
 
 	for c := -5.0; c < 36; c++ {
 		f := 32 + (c * 1.8)
-		fmt.Printf("c: %0.2f f: %0.2f delta: %v ratio: %0.2f\n", c, f, c-FlatCelsius, heatAdjustmentCelsiusExtraPercentage(c))
+		logger.Infof("c: %0.2f f: %0.2f delta: %v ratio: %0.2f", c, f, c-FlatCelsius, heatAdjustmentCelsiusExtraPercentage(c))
 	}
 
 	test.That(t, heatAdjustmentCelsiusExtraPercentage(18), test.ShouldBeLessThan, 0) // 64.4f
 
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(22.1), test.ShouldBeGreaterThan, 0) // 64.4f
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(23), test.ShouldBeLessThan, 0.5)    // 73.4f
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(31), test.ShouldBeGreaterThan, 1.7) // 87.8f
-	test.That(t, heatAdjustmentCelsiusExtraPercentage(36), test.ShouldBeLessThan, 3.0)    // 87.8f
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(22.1), test.ShouldBeGreaterThan, 0)       // 64.4f
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(23), test.ShouldBeLessThan, 0.5)          // 73.4f
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(31), test.ShouldBeGreaterThan, 1.7)       // 87.8f
+	test.That(t, heatAdjustmentCelsiusExtraPercentage(36), test.ShouldBeLessThanOrEqualTo, 2.0) // 87.8f
 
 	test.That(t, heatAdjustmentCelsiusExtraPercentage(0), test.ShouldBeLessThan, -1)   // freezing
 	test.That(t, heatAdjustmentCelsiusExtraPercentage(5), test.ShouldBeLessThan, -1)   // freezing
