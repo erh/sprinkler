@@ -31,6 +31,16 @@ type sprinklerConfig struct {
 	Zones     map[string]ZoneConfig
 	Lat       string
 	Long      string
+	SkipDays  []int `json:"skip_days"`
+}
+
+func (cfg sprinklerConfig) SkipDay(now time.Time) bool {
+	for _, d := range cfg.SkipDays {
+		if d == int(now.Weekday()) {
+			return true
+		}
+	}
+	return false
 }
 
 func (cfg sprinklerConfig) Validate(path string) ([]string, []string, error) {
@@ -197,7 +207,6 @@ const (
 )
 
 func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
-
 	if now.Sub(s.lastRainCheck) < (time.Minute * 10) {
 		return rainTooSoon, nil
 	}
@@ -330,6 +339,11 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 }
 
 func (s *sprinkler) pickNext_inlock(now time.Time) string {
+
+	if s.config.SkipDay(now) {
+		return ""
+	}
+
 	names := s.config.zoneOrder()
 	for _, n := range names {
 		z := s.config.Zones[n]

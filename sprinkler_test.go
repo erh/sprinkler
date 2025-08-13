@@ -145,3 +145,25 @@ func TestHeatAdjustmentCelsiusExtraPercentage(t *testing.T) {
 	test.That(t, heatAdjustmentCelsiusExtraPercentage(5), test.ShouldBeLessThan, -1)   // freezing
 	test.That(t, heatAdjustmentCelsiusExtraPercentage(10), test.ShouldBeLessThan, -.5) // freezing
 }
+
+func TestSkipDay(t *testing.T) {
+	c := sprinklerConfig{}
+	now := time.Now()
+	test.That(t, c.SkipDay(now), test.ShouldBeFalse)
+
+	newYork, err := time.LoadLocation("America/New_York")
+	test.That(t, err, test.ShouldBeNil)
+
+	now = time.Date(2026, now.Month(), 12, 15, 10, 10, 0, newYork)
+	test.That(t, c.SkipDay(now), test.ShouldBeFalse)
+	now = time.Date(2026, now.Month(), 13, 15, 10, 10, 0, newYork)
+	test.That(t, c.SkipDay(now), test.ShouldBeFalse)
+
+	c.SkipDays = []int{4}
+
+	now = time.Date(2026, now.Month(), 12, 15, 10, 10, 0, newYork)
+	test.That(t, c.SkipDay(now), test.ShouldBeFalse)
+	now = time.Date(2026, now.Month(), 13, 15, 10, 10, 0, newYork)
+	test.That(t, c.SkipDay(now), test.ShouldBeTrue)
+
+}
