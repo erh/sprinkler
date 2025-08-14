@@ -103,7 +103,7 @@ func (s *server) getData() (*info, error) {
 			}
 		}
 		i.Zones = append(i.Zones, z)
-		i.TotalMinutesLeft += max(0, z.MinutesConf-z.MinutesSoFar)
+		i.TotalMinutesLeft += max(0, float64(z.MinutesConf)-z.MinutesSoFar)
 	}
 
 	return i, nil
