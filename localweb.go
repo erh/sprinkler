@@ -42,6 +42,8 @@ type info struct {
 	Running   string
 	PauseTill string
 	Message   string
+
+	TotalMinutesLeft float64
 }
 
 func coerceorder(v interface{}) []string {
@@ -100,8 +102,8 @@ func (s *server) getData() (*info, error) {
 				z.MinutesConf = int(xx)
 			}
 		}
-
 		i.Zones = append(i.Zones, z)
+		i.TotalMinutesLeft += max(0, z.MinutesConf-z.MinutesSoFar)
 	}
 
 	return i, nil
