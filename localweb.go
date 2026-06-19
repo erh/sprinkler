@@ -16,14 +16,21 @@ import (
 var indexHtmlBytes []byte
 
 func RunServer(ctx context.Context, logger logging.Logger, bind string, sprinkler sensor.Sensor) error {
+	return newWebServer(bind, logger, sprinkler).ListenAndServe()
+}
+
+// newWebServer builds an http.Server with its own mux so multiple servers
+// (e.g. across resource rebuilds) don't collide on the global DefaultServeMux.
+func newWebServer(bind string, logger logging.Logger, sprinkler sensor.Sensor) *http.Server {
 	s := &server{
 		logger:    logger,
 		sprinkler: sprinkler,
 	}
 
-	http.Handle("/", s)
+	mux := http.NewServeMux()
+	mux.Handle("/", s)
 
-	return http.ListenAndServe(bind, nil)
+	return &http.Server{Addr: bind, Handler: mux}
 }
 
 type server struct {

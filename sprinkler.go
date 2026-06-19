@@ -3,6 +3,7 @@ package sprinkler
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -125,7 +126,13 @@ func newSprinkler(ctx context.Context, deps resource.Dependencies, config resour
 	}
 
 	go s.run()
-	go RunServer(ctx, logger, ":9999", s)
+
+	s.webServer = newWebServer(":9999", logger, s)
+	go func() {
+		if err := s.webServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Errorf("web server error: %v", err)
+		}
+	}()
 
 	return s, nil
 }
@@ -140,8 +147,9 @@ type sprinkler struct {
 	backgroundContext context.Context
 	backgroundCancel  context.CancelFunc
 
-	theBoard board.Board
-	pins     map[string]board.GPIOPin
+	theBoard  board.Board
+	pins      map[string]board.GPIOPin
+	webServer *http.Server
 
 	statsLock     sync.Mutex
 	stats         DataAPI
@@ -183,6 +191,9 @@ func (s *sprinkler) Status(ctx context.Context) (map[string]interface{}, error) 
 
 func (s *sprinkler) Close(ctx context.Context) error {
 	s.backgroundCancel()
+	if s.webServer != nil {
+		return s.webServer.Shutdown(ctx)
+	}
 	return nil
 }
 
