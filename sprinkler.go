@@ -26,9 +26,10 @@ type ZoneConfig struct {
 }
 
 type sprinklerConfig struct {
-	Board     string
-	StartHour int    `json:"start_hour"`
-	DataDir   string `json:"data_dir"`
+	Board       string
+	StartHour   int    `json:"start_hour"`
+	StartMinute int    `json:"start_minute"`
+	DataDir     string `json:"data_dir"`
 	Zones     map[string]ZoneConfig
 	Lat       string
 	Long      string
@@ -167,6 +168,13 @@ func (s *sprinkler) init() error {
 	var err error
 	if s.config.DataDir == "" {
 		s.config.DataDir = "sprinkler_data"
+	}
+
+	// Default start time is 00:15. We start a bit after midnight rather than
+	// exactly at it so the loop isn't accruing/reading right as the per-day
+	// data file rolls over at the calendar boundary.
+	if s.config.StartHour == 0 && s.config.StartMinute == 0 {
+		s.config.StartMinute = 15
 	}
 
 	err = os.MkdirAll(s.config.DataDir, os.ModePerm)
@@ -335,7 +343,8 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 		return s.stopAllExcept(ctx, "")
 	}
 
-	if s.config.StartHour >= 0 && (now.Hour() < 1 || now.Hour() < s.config.StartHour) {
+	startMinuteOfDay := s.config.StartHour*60 + s.config.StartMinute
+	if s.config.StartHour >= 0 && (now.Hour()*60+now.Minute()) < startMinuteOfDay {
 		s.running = ""
 		s.lastLoop = now
 		s.statsLock.Unlock()

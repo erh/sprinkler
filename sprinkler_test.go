@@ -168,3 +168,54 @@ func TestSkipDay(t *testing.T) {
 	test.That(t, c.SkipDay(now), test.ShouldBeTrue)
 
 }
+
+func TestStartTime(t *testing.T) {
+	ctx := context.Background()
+	day := time.Date(2026, time.June, 18, 0, 0, 0, 0, time.UTC)
+
+	// Unset start_hour/start_minute defaults to 00:15.
+	t.Run("default-00:15", func(t *testing.T) {
+		s := sprinkler{
+			config: &sprinklerConfig{Zones: testSimpleConfig.Zones},
+			logger: logging.NewTestLogger(t),
+		}
+		f := addDummyPins(&s)
+		defer f()
+
+		test.That(t, s.config.StartHour, test.ShouldEqual, 0)
+		test.That(t, s.config.StartMinute, test.ShouldEqual, 15)
+
+		// 00:10 is before the start time -> nothing runs.
+		test.That(t, s.doLoop(ctx, day.Add(10*time.Minute)), test.ShouldBeNil)
+		test.That(t, s.running, test.ShouldEqual, "")
+
+		// 00:20 is after the start time -> a zone runs.
+		test.That(t, s.doLoop(ctx, day.Add(20*time.Minute)), test.ShouldBeNil)
+		test.That(t, s.running, test.ShouldEqual, "b")
+	})
+
+	// An explicit start time gates with minute resolution.
+	t.Run("explicit-06:30", func(t *testing.T) {
+		s := sprinkler{
+			config: &sprinklerConfig{
+				StartHour:   6,
+				StartMinute: 30,
+				Zones:       testSimpleConfig.Zones,
+			},
+			logger: logging.NewTestLogger(t),
+		}
+		f := addDummyPins(&s)
+		defer f()
+
+		// init must not override an explicitly configured start time.
+		test.That(t, s.config.StartMinute, test.ShouldEqual, 30)
+
+		// 06:29 is before the start time -> nothing runs.
+		test.That(t, s.doLoop(ctx, day.Add(6*time.Hour+29*time.Minute)), test.ShouldBeNil)
+		test.That(t, s.running, test.ShouldEqual, "")
+
+		// 06:30 is the start time -> a zone runs.
+		test.That(t, s.doLoop(ctx, day.Add(6*time.Hour+30*time.Minute)), test.ShouldBeNil)
+		test.That(t, s.running, test.ShouldEqual, "b")
+	})
+}
