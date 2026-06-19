@@ -5,8 +5,8 @@ import (
 	_ "embed"
 	"flag"
 
-	"github.com/edaniels/golog"
 	"go.viam.com/rdk/components/sensor"
+	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/robot/client"
 	"go.viam.com/rdk/utils"
 	"go.viam.com/utils/rpc"
@@ -30,7 +30,7 @@ func realMain() error {
 	flag.StringVar(&secret, "secret", "", "robot secret")
 	flag.Parse()
 
-	logger := golog.NewDevelopmentLogger("client")
+	logger := logging.NewDebugLogger("client")
 
 	robot, err := client.New(
 		context.Background(),

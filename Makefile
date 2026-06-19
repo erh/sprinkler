@@ -18,3 +18,4 @@ module: bin/sprinkler
 bin:
 	mkdir bin
 
+all: test bin/sprinkler

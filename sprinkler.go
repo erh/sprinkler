@@ -177,6 +177,10 @@ func (s *sprinkler) Name() resource.Name {
 	return s.name
 }
 
+func (s *sprinkler) Status(ctx context.Context) (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
+}
+
 func (s *sprinkler) Close(ctx context.Context) error {
 	s.backgroundCancel()
 	return nil

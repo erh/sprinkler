@@ -4,9 +4,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/edaniels/golog"
-
 	"go.viam.com/rdk/config"
+	"go.viam.com/rdk/logging"
 	robotimpl "go.viam.com/rdk/robot/impl"
 	"go.viam.com/rdk/robot/web"
 
@@ -22,9 +21,9 @@ func main() {
 func realMain() error {
 
 	ctx := context.Background()
-	logger := golog.NewDevelopmentLogger("client")
+	logger := logging.NewDebugLogger("client")
 
-	conf, err := config.ReadLocalConfig(ctx, os.Args[1], logger)
+	conf, err := config.ReadLocalConfig(os.Args[1], logger)
 	if err != nil {
 		return err
 	}
@@ -34,7 +33,7 @@ func realMain() error {
 		return err
 	}
 
-	myRobot, err := robotimpl.New(ctx, conf, logger)
+	myRobot, err := robotimpl.New(ctx, conf, nil, logger)
 	if err != nil {
 		return err
 	}
