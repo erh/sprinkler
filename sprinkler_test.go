@@ -154,16 +154,17 @@ func TestSkipDay(t *testing.T) {
 	newYork, err := time.LoadLocation("America/New_York")
 	test.That(t, err, test.ShouldBeNil)
 
-	now = time.Date(2026, now.Month(), 12, 15, 10, 10, 0, newYork)
+	// Aug 12, 2026 is a Wednesday (weekday 3); Aug 13, 2026 is a Thursday (weekday 4).
+	now = time.Date(2026, time.August, 12, 15, 10, 10, 0, newYork)
 	test.That(t, c.SkipDay(now), test.ShouldBeFalse)
-	now = time.Date(2026, now.Month(), 13, 15, 10, 10, 0, newYork)
+	now = time.Date(2026, time.August, 13, 15, 10, 10, 0, newYork)
 	test.That(t, c.SkipDay(now), test.ShouldBeFalse)
 
 	c.SkipDays = []int{4}
 
-	now = time.Date(2026, now.Month(), 12, 15, 10, 10, 0, newYork)
+	now = time.Date(2026, time.August, 12, 15, 10, 10, 0, newYork)
 	test.That(t, c.SkipDay(now), test.ShouldBeFalse)
-	now = time.Date(2026, now.Month(), 13, 15, 10, 10, 0, newYork)
+	now = time.Date(2026, time.August, 13, 15, 10, 10, 0, newYork)
 	test.That(t, c.SkipDay(now), test.ShouldBeTrue)
 
 }
