@@ -246,19 +246,19 @@ func (s *sprinkler) doRainPrediction_inlock(now time.Time) (int, error) {
 		if rain > 0 {
 			toAdd := time.Duration(float64(time.Minute) * float64(z.Minutes) * rain / 20)
 			totalToAdd += toAdd
-			fmt.Printf("remove %v minutes to zone %v because it rained (%v)\n", toAdd, n, rain)
+			fmt.Printf("remove %v to zone %v because it rained (%v)\n", toAdd.Round(time.Second), n, rain)
 		}
 
 		if tempAdjust > 0 {
 			toAdd := time.Duration(tempAdjust * float64(z.Minutes) * float64(time.Minute))
 			totalToAdd -= toAdd
-			fmt.Printf("adding %v minutes to zone %v because it's hot (%v)\n", toAdd, n, maxTempReal)
+			fmt.Printf("adding %v to zone %v because it's hot (%v)\n", toAdd.Round(time.Second), n, maxTempReal)
 		}
 
 		if tempAdjust < 0 {
 			toAdd := time.Duration(tempAdjust * float64(z.Minutes) * float64(time.Minute))
 			totalToAdd -= toAdd
-			fmt.Printf("adding %v minutes to zone %v because it's cold (%v)\n", toAdd, n, maxTempReal)
+			fmt.Printf("adding %v to zone %v because it's cold (%v)\n", toAdd.Round(time.Second), n, maxTempReal)
 		}
 
 		_, err = s.stats.AddWatered(n, now, totalToAdd)
@@ -298,7 +298,7 @@ func (s *sprinkler) doLoop(ctx context.Context, now time.Time) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("adding %v to %v, now at : %v\n", amount, s.running, total)
+		fmt.Printf("adding %v to %v, now at : %v\n", amount.Round(time.Second), s.running, total.Round(time.Second))
 
 	}
 	s.lastLoop = now
